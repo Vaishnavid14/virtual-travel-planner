@@ -1,2 +1,2 @@
 ## Demo
-[Live Demo](https://https://vaishnavid14.github.io/virtual-travel-planner/)
+[Live Demo](https://vaishnavid14.github.io/virtual-travel-planner/)
