@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual Travel Planner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    .container {
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .controls input, .controls select, .controls button {
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .controls button {
+      background: #007BFF;
+      color: white;
+      cursor: pointer;
+    }
+    .controls button:hover {
+      background: #0056b3;
+    }
+    .travel-results {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .result {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .result img {
+      width: 100%;
+      border-radius: 10px;
+    }
+    .result h3 {
+      margin: 10px 0;
+      font-size: 18px;
+      color: #333;
+    }
+    .result p {
+      font-size: 14px;
+      color: #666;
+      margin: 5px 0;
+      word-wrap: break-word;
+    }
+    .result a {
+      font-size: 14px;
+      color: #007BFF;
+      text-decoration: none;
+      margin-top: auto;
+    }
+    .result a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Virtual Travel Planner</h1>
+    <div class="controls">
+      <input type="text" id="destination-input" placeholder="Enter a destination...">
+      <select id="travel-type">
+        <option value="cultural">Landmarks</option>
+        <option value="amusements">Activities</option>
+        <option value="accomodations">Hotels</option>
+      </select>
+      <button id="search-button">Search</button>
+    </div>
+    <div class="travel-results" id="travel-results"></div>
+  </div>
+
+  <script>
+    const API_KEY = '5ae2e3f221c38a28845f05b6f24e83a31682fe28f370a93404642ccf'; // Replace with your OpenTripMap API key
+    const PEXELS_API_KEY = 'TTv1lBxa1Wj5zrqpnUL6zjgxZfJQpLD0bzaiyiAaYX2gKT9QEW8Mblm9'; // Replace with your Pexels API key
+    const searchButton = document.getElementById('search-button');
+    const destinationInput = document.getElementById('destination-input');
+    const travelType = document.getElementById('travel-type');
+    const travelResults = document.getElementById('travel-results');
+
+    // Fetch travel data
+    async function fetchTravelData(destination, type) {
+      try {
+        // Get coordinates for the destination
+        const geoResponse = await fetch(
+          `https://api.opentripmap.com/0.1/en/places/geoname?name=${destination}&apikey=${API_KEY}`
+        );
+        const geoData = await geoResponse.json();
+
+        const { lon, lat } = geoData;
+
+        // Fetch places near the destination
+        const placesResponse = await fetch(
+          `https://api.opentripmap.com/0.1/en/places/radius?radius=10000&lon=${lon}&lat=${lat}&kinds=${type}&apikey=${API_KEY}`
+        );
+
+        if (!placesResponse.ok) {
+          throw new Error('Failed to fetch travel data');
+        }
+
+        const placesData = await placesResponse.json();
+        const places = placesData.features.map(feature => ({
+          name: feature.properties.name,
+          description: feature.properties.kinds,
+          link: `https://opentripmap.com/en/poi/${feature.properties.xid}`,
+        }));
+
+        // Fetch images for each place
+        const placesWithImages = await Promise.all(
+          places.map(async place => {
+            const image = await fetchImage(place.name);
+            return { ...place, image };
+          })
+        );
+
+        displayResults(placesWithImages);
+      } catch (error) {
+        travelResults.innerHTML = '<p>No results found. Please try again.</p>';
+      }
+    }
+
+    // Fetch image from Pexels
+    async function fetchImage(query) {
+      try {
+        const response = await fetch(
+          `https://api.pexels.com/v1/search?query=${query}&per_page=1`,
+          {
+            headers: {
+              Authorization: PEXELS_API_KEY
+            }
+          }
+        );
+        const data = await response.json();
+        if (data.photos && data.photos.length > 0) {
+          return data.photos[0].src.medium;
+        } else {
+          return 'https://via.placeholder.com/200';
+        }
+      } catch (error) {
+        return 'https://via.placeholder.com/200';
+      }
+    }
+
+    // Display travel results
+    function displayResults(results) {
+      if (!results || results.length === 0) {
+        travelResults.innerHTML = '<p>No results found. Please try a different destination or travel type.</p>';
+        return;
+      }
+
+      travelResults.innerHTML = results.map(result => `
+        <div class="result">
+          <img src="${result.image}" alt="${result.name}">
+          <h3>${result.name}</h3>
+          <p>${result.description || 'No description available.'}</p>
+          <a href="${result.link}" target="_blank">Learn More</a>
+        </div>
+      `).join('');
+    }
+
+    // Handle search button click
+    searchButton.addEventListener('click', () => {
+      const destination = destinationInput.value.trim();
+      const type = travelType.value;
+      if (destination === '') {
+        alert('Please enter a destination.');
+        return;
+      }
+      fetchTravelData(destination, type);
+    });
+  </script>
+</body>
+</html>
