@@ -1,2 +1,2 @@
-# virtual-travel-planner
-A virtual trip planner
+## Demo
+[Live Demo](https://https://vaishnavid14.github.io/virtual-travel-planner/)
